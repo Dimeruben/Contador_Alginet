@@ -2,19 +2,14 @@
 #include <SPI.h>                                                              // Librería para la comunicación SPI
 #include <nRF24L01.h>                                                         // Librerías para el funcionamiento del módulo NRF24L01
 #include <RF24.h>
-
 #include <EEPROM.h>
-
-
-#define CE 9                                                                  // Declaramos los pines de control del módulo NRF24L01
-#define CSN 10
-
 
 RF24 radio(CE, CSN);                                                          // Se crea el objeto tipo RF24
 
-
 const uint64_t canal[2] = {0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL};                   // Se declaran los canales (64 bits en hexadecimal) para transmisión RF
 
+#define CE 9                                                                  // Declaramos los pines de control del módulo NRF24L01
+#define CSN 10
 //#define  factorK  6.6
 #define  ISR_RF 3                                                             // Interrupción modulo RF --> Indica que hay algo para leer
 #define  GPIO_Pin  2                                                          // Pin del sensor de flujo, donde se configura la interrupción
@@ -55,74 +50,33 @@ void ISRCounter() {                                                          //I
   cont24hdia++;
 }
 
-
-
-//  https://nrf24.github.io/RF24/examples_2InterruptConfigure_2InterruptConfigure_8ino-example.html#_a0
-
-
-void setup() {
-
-  Serial.begin(115200);
-
-  digitalWrite(releAbrir , HIGH);
-  digitalWrite(releCerrar , HIGH);
-
-  pinMode(GPIO_Pin, INPUT);
-  pinMode(ISR_RF, INPUT);
-  attachInterrupt(digitalPinToInterrupt(GPIO_Pin), ISRCounter, RISING); //interrrupcion del sensor de caudal
-  attachInterrupt(digitalPinToInterrupt(ISR_RF), ISR_RF_function, FALLING); //interrrupcion de la radio
-  pinMode(LED_BUILTIN, OUTPUT);
-  digitalWrite(LED_BUILTIN, LOW);
-  pinMode(releAbrir, OUTPUT);
-  pinMode(releCerrar, OUTPUT);
-
-  ValvulaAbierta = EEPROM.read(0);
-  Serial.println("EEPROM estado valvula");
-  Serial.println(ValvulaAbierta);
-
-
-  //Inicialización del modulo RF
-  radio.begin(); //Start the nRF24 module
-  radio.setAutoAck(1); // Ensure autoACK is enabled so rec sends ack packet to let you know it got the transmit packet payload
-  //radio.enableAckPayload(); //allows you to include payload on ack packet
-  radio.maskIRQ(1, 1, 0); //mask all IRQ triggers except for receive (1 is mask, 0 is no mask)
-  radio.setPALevel(RF24_PA_LOW); //Set power level to low, won't work well at higher levels (interfer with receiver)
-  radio.startListening(); // Start listening for message
-  radio.setDataRate(RF24_250KBPS);  //Minima velocidad para aumentar rango
-  radio.setChannel(100);            // Configuracion del canal de comunicacion
-  radio.openWritingPipe(canal[0]); // Abro el canal "0" para escribir
-  radio.openReadingPipe(1, canal[1]); // Abro el canal "1" para leer
-
-  cont1h = 0;
-  cont24h = 0;
-  contador = 0;
-
-}
 void ISR_RF_function() {
   //Interrupción que gestiona la señal del caudalímetro
   Serial.println("Estoy dentro de la interrupción");
   count++;
 
 }
-void loop() {
-
-  medirCaudal();
-  comprobarCont24h();
-  comprobarIninterrumpido();                                    // Comprueba que no ha habido un flujo ininterrumpido durante 5h
-  comprobarUbidots();
-  comprobarRF();
-    
-  if(radio.failureDetected){
-      radio.begin();                       // Attempt to re-configure the radio with defaults
-      radio.failureDetected = 0;           // Reset the detection value
-      radio.openWritingPipe(canal[0]); // Abro el canal "0" para escribir
-      radio.openReadingPipe(1, canal[1]); // Abro el canal "1" para leer
-      Serial.println("Error con RF24");
-        }
-delay(2000);         
-}
 
 void(* resetFunc) (void) = 0; //declare reset function @ address 0
+
+void notificaRF( String data) {
+
+  Serial.println("notificando a repetidor");
+  char msg_to_Rptr[20];
+  data.toCharArray(msg_to_Rptr, 20);
+
+  radio.stopListening();
+  if (!radio.write(&msg_to_Rptr, sizeof(msg_to_Rptr))) {
+    Serial.println("Mensaje no enviado");
+  }
+  delay(3000);                                         // Doy tiempo de escritura al emisor A
+ 
+  radio.startListening();
+  
+  Serial.print("mensaje enviado: ");
+  Serial.println(data);
+  delay(20);
+}
 
 void comprobarUbidots() {
 
@@ -148,7 +102,29 @@ void comprobarUbidots() {
 //    notificaRF (mensaje)
 }
 
+void abrirValvula() {                                                 //Rutina que abre la válvula principal
+  Serial.println("Abriendo Valvula");
+  notificaRF("Abriendo Valvula");
+  ValvulaAbierta = true;
+  EEPROM.write(0, true);
 
+  digitalWrite(releAbrir , LOW);
+  delay(25000);
+  digitalWrite(releAbrir , HIGH);
+}
+
+void cerrarValvula() { 
+                                                 //Rutina que cierra la válvula principal
+  Serial.println("Cerrando Valvula");
+  notificaRF("Cerrando Valvula");
+
+  ValvulaAbierta = false;
+  EEPROM.write(0, false);
+
+  digitalWrite(releCerrar , LOW);
+  delay(25000);
+  digitalWrite(releCerrar , HIGH);
+}
 
 void comprobarIninterrumpido() {
   if (flow_Lmin == 0)
@@ -191,29 +167,6 @@ void comprobarCont24h() {                                             //Comprueb
   }
 }
 
-void abrirValvula() {                                                 //Rutina que abre la válvula principal
-  Serial.println("Abriendo Valvula");
-  notificaRF("Abriendo Valvula");
-  ValvulaAbierta = true;
-  EEPROM.write(0, true);
-
-  digitalWrite(releAbrir , LOW);
-  delay(25000);
-  digitalWrite(releAbrir , HIGH);
-}
-
-void cerrarValvula() {                                                //Rutina que cierra la válvula principal
-  Serial.println("Cerrando Valvula");
-  notificaRF("Cerrando Valvula");
-
-  ValvulaAbierta = false;
-  EEPROM.write(0, false);
-
-  digitalWrite(releCerrar , LOW);
-  delay(25000);
-  digitalWrite(releCerrar , HIGH);
-}
-
 float medirCaudal() {                                                 //Realiza la medición de caudal instánea
 
   contador = 0;
@@ -229,25 +182,6 @@ float medirCaudal() {                                                 //Realiza 
   Serial.println(" L/min");
 
   return (flow_Lmin);
-}
-
-void notificaRF( String data) {
-
-  Serial.println("notificando a repetidor");
-  char msg_to_Rptr[20];
-  data.toCharArray(msg_to_Rptr, 20);
-
-  radio.stopListening();
-  if (!radio.write(&msg_to_Rptr, sizeof(msg_to_Rptr))) {
-    Serial.println("Mensaje no enviado");
-  }
-  delay(3000);                                         // Doy tiempo de escritura al emisor A
- 
-  radio.startListening();
-  
-  Serial.print("mensaje enviado: ");
-  Serial.println(data);
-  delay(20);
 }
 
 int comprobarRF() {
@@ -356,4 +290,61 @@ int comprobarRF() {
   
   }
   
+}
+
+void setup() {
+
+  Serial.begin(115200);
+
+  digitalWrite(releAbrir , HIGH);
+  digitalWrite(releCerrar , HIGH);
+
+  pinMode(GPIO_Pin, INPUT);
+  pinMode(ISR_RF, INPUT);
+  attachInterrupt(digitalPinToInterrupt(GPIO_Pin), ISRCounter, RISING); //interrrupcion del sensor de caudal
+  attachInterrupt(digitalPinToInterrupt(ISR_RF), ISR_RF_function, FALLING); //interrrupcion de la radio
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+  pinMode(releAbrir, OUTPUT);
+  pinMode(releCerrar, OUTPUT);
+
+  ValvulaAbierta = EEPROM.read(0);
+  Serial.println("EEPROM estado valvula");
+  Serial.println(ValvulaAbierta);
+
+
+  //Inicialización del modulo RF
+  radio.begin(); //Start the nRF24 module
+  radio.setAutoAck(1); // Ensure autoACK is enabled so rec sends ack packet to let you know it got the transmit packet payload
+  //radio.enableAckPayload(); //allows you to include payload on ack packet
+  radio.maskIRQ(1, 1, 0); //mask all IRQ triggers except for receive (1 is mask, 0 is no mask)
+  radio.setPALevel(RF24_PA_LOW); //Set power level to low, won't work well at higher levels (interfer with receiver)
+  radio.startListening(); // Start listening for message
+  radio.setDataRate(RF24_250KBPS);  //Minima velocidad para aumentar rango
+  radio.setChannel(100);            // Configuracion del canal de comunicacion
+  radio.openWritingPipe(canal[0]); // Abro el canal "0" para escribir
+  radio.openReadingPipe(1, canal[1]); // Abro el canal "1" para leer
+
+  cont1h = 0;
+  cont24h = 0;
+  contador = 0;
+
+}
+
+void loop() {
+
+  medirCaudal();
+  comprobarCont24h();
+  comprobarIninterrumpido();                                    // Comprueba que no ha habido un flujo ininterrumpido durante 5h
+  comprobarUbidots();
+  comprobarRF();
+    
+  if(radio.failureDetected){
+      radio.begin();                       // Attempt to re-configure the radio with defaults
+      radio.failureDetected = 0;           // Reset the detection value
+      radio.openWritingPipe(canal[0]); // Abro el canal "0" para escribir
+      radio.openReadingPipe(1, canal[1]); // Abro el canal "1" para leer
+      Serial.println("Error con RF24");
+        }
+delay(2000);         
 }
