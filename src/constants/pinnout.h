@@ -1,8 +1,8 @@
 #pragma once
 
 // Declaramos los pines de control del módulo NRF24L01
-#define CE 9                        
-#define CSN 10
+const int CE=9;      
+const int CSN=10;                
 
 // Interrupción modulo RF --> Indica que hay algo para leer
 #define  ISR_RF 3  

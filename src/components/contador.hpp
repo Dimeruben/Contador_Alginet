@@ -14,7 +14,6 @@ public:
         attachInterrupt(digitalPinToInterrupt(pinContador), Contador::getISRCounter, RISING);
     
     }
-
     
     float medirCaudal() 
     {                                                 //Realiza la medición de caudal instánea
@@ -56,6 +55,7 @@ private:
     unsigned long cont24h = 0;                                                    //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
     unsigned long cont1h = 0;
 
+    //https://stackoverflow.com/questions/41443720/how-to-create-an-isr-in-an-arduino-class
     static void getISRCounter(void* Contador)
     {
         anchor-> ISRCounter();
