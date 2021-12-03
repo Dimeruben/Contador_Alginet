@@ -8,7 +8,7 @@
 #define  ISR_RF 3  
 
 // Pin del sensor de flujo, donde se configura la interrupción
-#define  GPIO_Pin  2                
+#define  pinContador  2                
 
 // Elegimos Pin donde se conectara el rele de Apertura
 #define  releAbrir 5                

@@ -4,30 +4,26 @@
 #include <RF24.h>
 #include <EEPROM.h>
 
-#include "constants\config.h"
+#include "constants/config.h"
 #include "constants/pinnout.h"
 #include "constants/enum.h"
 
-#include "./components/valvula.hpp"
-
+#include "components/valvula.hpp"
+#include "components/contador.hpp"
                                                         // Se crea el objeto tipo RF24
 
 const uint64_t canal[2] = {0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL};                   // Se declaran los canales (64 bits en hexadecimal) para transmisión RF
 
 RF24 radio(CE, CSN);  
 
-const float  factorK  = 6.6  ; 
-
 //Variables auxiliares
 unsigned long Lap;                                                            //Marcador para inicio de Lapso
-unsigned long Time;                                                           //MArcador de tiempo para calculo de caudal instantaneo
+                                                          //MArcador de tiempo para calculo de caudal instantaneo
 unsigned long Time24h = 0;                                                    //Marcador de tiempo para reinicio del consumo acumulado (cada 24h)
 unsigned long Time5h = 0;                                                     //Marcador de tiempo para reinicio del consumo ininterrumpido (cada 5h)
 unsigned long Hora = 0;
-int contador = 0;                                                             //Pulsos recibidos por el caudalimetro. Para función medirCaudal()
-unsigned long cont24hdia = 0;                                                 //para el calculo diario a las 00:00 y mandar a Ubidots
-unsigned long cont24h = 0;                                                    //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
-unsigned long cont1h = 0;                                                               //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
+                                                           //Pulsos recibidos por el caudalimetro. Para función medirCaudal()
+                                                               //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
 unsigned long LimManual = 0;                                                  // Limite manual de agua (por ejemplo para llenar piscina)
 float flow_Lmin = 0;                                                          //Caudal instantaneo en L/min
 float frecuencia = 0;
@@ -42,13 +38,7 @@ String mensaje;
 String datoRecibido ;
 
 ValvulaComponent valvula;
-
-void ISRCounter() {                                                          //Interrupción que gestiona la señal del caudalímetro
-  contador++;
-  cont24h++;
-  cont1h++;
-  cont24hdia++;
-}
+Contador contador;
 
 void ISR_RF_function() {
   //Interrupción que gestiona la señal del caudalímetro
@@ -84,9 +74,9 @@ void comprobarUbidots() {
     Serial.println ("mandando consumo en una hora");
 
     mensaje = "H";
-    mensaje.concat(cont1h / factorK / 60);
+    mensaje.concat(contador.getCont1h() / factorK / 60);
 
-    cont1h = 0;
+    contador.reset1h();
     Hora = millis();
     notificaRF (mensaje);
 
@@ -119,25 +109,25 @@ void comprobarIninterrumpido() {
 
 void comprobarCont24h() {                                             //Comprueba si ha habido un consumo excesivo en las últimas 24h
 
-  if (cont24h > cont24hmax) {
+  if (contador.getCont24h() > cont24hmax) {
     if(isLimManual==false){
       valvula.cerrarValvula();
       notificaRF("Cerrando Valvula");
-      cont24h = 0;
+      contador.reset24h();
       notificaRF("Cons Dia Exced");
     }
   }
 
-  if(cont24h > LimManual && isLimManual==true){
+  if(contador.getCont24h() > LimManual && isLimManual==true){
       valvula.cerrarValvula();
-      cont24h = 0;
+      contador.reset24h();
       notificaRF("Cons LimManual Exced");
       isLimManual=false;
   }
 
   
   if (millis() - Time24h > 86400000  || millis() < Time24h) {          //cada 86400000ms =1000*60*60*24 (24h) se reinicia el contador de consumo a 0
-    cont24h = 0;
+    contador.reset24h();
     Time24h = millis();
     if(isLimManual==true) {
       isLimManual=false;
@@ -146,22 +136,7 @@ void comprobarCont24h() {                                             //Comprueb
   }
 }
 
-float medirCaudal() {                                                 //Realiza la medición de caudal instánea
 
-  contador = 0;
-  Time = millis();
-
-  while (millis() - Time <= 1000) {}
-  Serial.print(contador);
-  Serial.print(contador);
-  flow_Lmin = contador / factorK;
-
-  Serial.print("Caudal = ");
-  Serial.print(flow_Lmin);
-  Serial.println(" L/min");
-
-  return (flow_Lmin);
-}
 
 int comprobarRF() {
   
@@ -193,19 +168,19 @@ int comprobarRF() {
 
   else if (datoRecibido == "/consumo") {
 
-    mensaje.concat(cont24h / factorK / 60);
+    mensaje.concat(contador.getCont24h() / factorK / 60);
     notificaRF (mensaje);
   }
 
   else if (datoRecibido == "/initlapso") {
-    Lap = cont24h;
+    Lap = contador.getCont24h () ;
     notificaRF ("Iniciando lapso");
   }
 
   else if (datoRecibido == "/finlapso") {
     notificaRF ("Agua consumida");
     //delay(2000);
-    mensaje.concat((cont24h - Lap) / 396);
+    mensaje.concat((contador.getCont24h()  - Lap) / 396);
     notificaRF(mensaje);
   }
 
@@ -230,9 +205,9 @@ int comprobarRF() {
 
     notificaRF ("Consumo del día = ");
     mensaje="D";
-    mensaje.concat(cont24hdia / factorK / 60);
+    mensaje.concat(contador.getCont24hdia()  / factorK / 60);
     notificaRF (mensaje);
-    cont24hdia = 0;
+    contador.reset24hdia();
     Hora = millis();                                    //sincronización de hora para notificación horaria
   }
 
@@ -254,12 +229,11 @@ int comprobarRF() {
       LimManual = int(msg_from_rptdr)*factorK*60;
       isLimManual=true;                                                       //Bandera para que la valvula no se cierre por otras causas
       
-      cont24h = 0;                                                            
+      contador.reset24h();                                                           
       Time24h = millis();
     }
     else notificaRF ("Dato no recibido"); 
 
-    
   }
 
   else {
@@ -278,9 +252,7 @@ void setup() {
   Serial.begin(115200);
 
   valvula.Init();
-  pinMode(GPIO_Pin, INPUT);
   pinMode(ISR_RF, INPUT);
-  attachInterrupt(digitalPinToInterrupt(GPIO_Pin), ISRCounter, RISING); //interrrupcion del sensor de caudal
   attachInterrupt(digitalPinToInterrupt(ISR_RF), ISR_RF_function, FALLING); //interrrupcion de la radio
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
@@ -297,15 +269,11 @@ void setup() {
   radio.openWritingPipe(canal[0]); // Abro el canal "0" para escribir
   radio.openReadingPipe(1, canal[1]); // Abro el canal "1" para leer
 
-  cont1h = 0;
-  cont24h = 0;
-  contador = 0;
-
 }
 
 void loop() {
 
-  medirCaudal();
+  contador.medirCaudal();
   comprobarCont24h();
   comprobarIninterrumpido();                                    // Comprueba que no ha habido un flujo ininterrumpido durante 5h
   comprobarUbidots();
