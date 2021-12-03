@@ -4,20 +4,21 @@
 #include <RF24.h>
 #include <EEPROM.h>
 
-RF24 radio(CE, CSN);                                                          // Se crea el objeto tipo RF24
+#include "constants\config.h"
+#include "constants/pinnout.h"
+#include "constants/enum.h"
+
+#include "./components/valvula.hpp"
+
+                                                        // Se crea el objeto tipo RF24
 
 const uint64_t canal[2] = {0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL};                   // Se declaran los canales (64 bits en hexadecimal) para transmisión RF
 
-#define CE 9                                                                  // Declaramos los pines de control del módulo NRF24L01
-#define CSN 10
-//#define  factorK  6.6
-#define  ISR_RF 3                                                             // Interrupción modulo RF --> Indica que hay algo para leer
-#define  GPIO_Pin  2                                                          // Pin del sensor de flujo, donde se configura la interrupción
-#define  releAbrir 5                                                          // Elegimos Pin donde se conectara el rele de Apertura
-#define  releCerrar 6                                                         // Elegimos Pin donde se conectara el rele de Cierre
+RF24 radio(CE, CSN);  
+
+const float  factorK  = 6.6  ; 
 
 //Variables auxiliares
-float factorK = 6.6;                                                          // 6.6 pulsos en un segundo equivale a 1 litro por minuto
 unsigned long Lap;                                                            //Marcador para inicio de Lapso
 unsigned long Time;                                                           //MArcador de tiempo para calculo de caudal instantaneo
 unsigned long Time24h = 0;                                                    //Marcador de tiempo para reinicio del consumo acumulado (cada 24h)
@@ -27,12 +28,10 @@ int contador = 0;                                                             //
 unsigned long cont24hdia = 0;                                                 //para el calculo diario a las 00:00 y mandar a Ubidots
 unsigned long cont24h = 0;                                                    //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
 unsigned long cont1h = 0;                                                               //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
-unsigned long cont24hmax = 1980000;                                           // 396 pulsos para un litro 1980000 para 5000
 unsigned long LimManual = 0;                                                  // Limite manual de agua (por ejemplo para llenar piscina)
 float flow_Lmin = 0;                                                          //Caudal instantaneo en L/min
 float frecuencia = 0;
 float string;
-boolean ValvulaAbierta = true;
 boolean isLimManual = false;
 int Litros = 0;
 int msg;
@@ -42,6 +41,7 @@ float data[2];
 String mensaje;
 String datoRecibido ;
 
+ValvulaComponent valvula;
 
 void ISRCounter() {                                                          //Interrupción que gestiona la señal del caudalímetro
   contador++;
@@ -102,29 +102,6 @@ void comprobarUbidots() {
 //    notificaRF (mensaje)
 }
 
-void abrirValvula() {                                                 //Rutina que abre la válvula principal
-  Serial.println("Abriendo Valvula");
-  notificaRF("Abriendo Valvula");
-  ValvulaAbierta = true;
-  EEPROM.write(0, true);
-
-  digitalWrite(releAbrir , LOW);
-  delay(25000);
-  digitalWrite(releAbrir , HIGH);
-}
-
-void cerrarValvula() { 
-                                                 //Rutina que cierra la válvula principal
-  Serial.println("Cerrando Valvula");
-  notificaRF("Cerrando Valvula");
-
-  ValvulaAbierta = false;
-  EEPROM.write(0, false);
-
-  digitalWrite(releCerrar , LOW);
-  delay(25000);
-  digitalWrite(releCerrar , HIGH);
-}
 
 void comprobarIninterrumpido() {
   if (flow_Lmin == 0)
@@ -134,7 +111,8 @@ void comprobarIninterrumpido() {
   if (millis() - Time5h > 18000000  || millis() < Time5h) {          //cada 18000000ms =1000*60*60*5 (5h) se reinicia el contador de consumo a 0
     Time5h = millis();
     notificaRF("Ininterrumpido");
-    cerrarValvula();
+    valvula.cerrarValvula();
+    notificaRF("Cerrando Valvula");
   }
 
 }
@@ -143,14 +121,15 @@ void comprobarCont24h() {                                             //Comprueb
 
   if (cont24h > cont24hmax) {
     if(isLimManual==false){
-      cerrarValvula();
+      valvula.cerrarValvula();
+      notificaRF("Cerrando Valvula");
       cont24h = 0;
       notificaRF("Cons Dia Exced");
     }
   }
 
   if(cont24h > LimManual && isLimManual==true){
-      cerrarValvula();
+      valvula.cerrarValvula();
       cont24h = 0;
       notificaRF("Cons LimManual Exced");
       isLimManual=false;
@@ -200,10 +179,12 @@ int comprobarRF() {
   mensaje = "";
 
   if (datoRecibido == "Cerrar") {
-    cerrarValvula();
+    valvula.cerrarValvula();
+    notificaRF("Cerrando Valvula");
   }
   else if (datoRecibido == "Abrir") {
-    abrirValvula();
+    valvula.abrirValvula();
+    notificaRF("Abriendo Valvula");
   }
   else if (datoRecibido == "/caudal") {
     mensaje.concat(flow_Lmin);
@@ -229,7 +210,7 @@ int comprobarRF() {
   }
 
   else if (datoRecibido == "/electrovalvula") {
-    if (ValvulaAbierta == true) {
+    if (valvula.valvulaAbierta() == true) {
       notificaRF ("EV abierta");
     }
     else  notificaRF ("EV cerrada") ;
@@ -296,22 +277,13 @@ void setup() {
 
   Serial.begin(115200);
 
-  digitalWrite(releAbrir , HIGH);
-  digitalWrite(releCerrar , HIGH);
-
+  valvula.Init();
   pinMode(GPIO_Pin, INPUT);
   pinMode(ISR_RF, INPUT);
   attachInterrupt(digitalPinToInterrupt(GPIO_Pin), ISRCounter, RISING); //interrrupcion del sensor de caudal
   attachInterrupt(digitalPinToInterrupt(ISR_RF), ISR_RF_function, FALLING); //interrrupcion de la radio
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
-  pinMode(releAbrir, OUTPUT);
-  pinMode(releCerrar, OUTPUT);
-
-  ValvulaAbierta = EEPROM.read(0);
-  Serial.println("EEPROM estado valvula");
-  Serial.println(ValvulaAbierta);
-
 
   //Inicialización del modulo RF
   radio.begin(); //Start the nRF24 module
