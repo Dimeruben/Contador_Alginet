@@ -1,9 +1,11 @@
 #pragma once
 
+#include <EEPROM.h>
+
 #include "constants/config.h"
 #include "constants/pinnout.h"
 
-class ValvulaComponent
+class ValvulaComponent 
 {
 public:
     void Init()
@@ -46,6 +48,7 @@ public:
     bool valvulaAbierta(){
         return isValvulaAbierta;
     }
+
 private:
     bool isValvulaAbierta;
 

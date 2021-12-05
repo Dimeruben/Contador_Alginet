@@ -10,13 +10,10 @@ class RF
 {
 public:
 
-
-
     void Init()
     {
         anchor = this;
 
-      
          //Inicialización del modulo RF
         radio->begin(CE,CSN); //Start the nRF24 module
         radio->setAutoAck(1); // Ensure autoACK is enabled so rec sends ack packet to let you know it got the transmit packet payload
@@ -68,7 +65,8 @@ public:
 
             return(datoRecibido);
         }
-
+        
+        return ("NoData");
     }
 
     void checkFailure()
@@ -87,6 +85,7 @@ public:
     void ISR_RF_function() 
     {
         Serial.println("Mensaje entrante");
+
     }
 
 private:
