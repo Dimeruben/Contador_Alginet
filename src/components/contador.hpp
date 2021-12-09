@@ -1,7 +1,7 @@
 #pragma once
 
-#include "constants/config.h"
-#include "constants/pinnout.h"
+#include "./constants/config.h"
+#include "./constants/pinnout.h"
 
 class Contador
 {
@@ -9,7 +9,7 @@ class Contador
 
         void Init()
         {
-            anchor = this;
+            
             pinMode(pinContador, INPUT);
             attachInterrupt(digitalPinToInterrupt(pinContador), Contador::getISRCounter, RISING);
         
@@ -48,7 +48,6 @@ class Contador
         }
 
     private:
-
         static Contador* anchor;
         int cont = 0;
         unsigned long cont24hdia = 0;                                                 //para el calculo diario a las 00:00 y mandar a Ubidots
@@ -56,10 +55,8 @@ class Contador
         unsigned long cont1h = 0;
 
         //https://stackoverflow.com/questions/41443720/how-to-create-an-isr-in-an-arduino-class
-        static void getISRCounter(void* Contador)
+        void static  getISRCounter(void* contador)
         {
-            anchor-> ISRCounter();
+            anchor->ISRCounter();
         }
-
-
-};
+}; 
