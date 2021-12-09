@@ -1,5 +1,5 @@
 #include "components/valvula.hpp"
-#include "components/contador.hpp"
+#include "components/contador.h"
 #include "components/RF.hpp"
 
 #include "services/comunication.hpp"
@@ -31,3 +31,4 @@ void loop() {
   delay(100);
      
 }
+

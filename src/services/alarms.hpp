@@ -3,7 +3,7 @@
 
 #include "./components/valvula.hpp"
 #include "./components/RF.hpp"
-#include "./components/contador.hpp"
+#include "./components/contador.h"
 
     
 class Alarms

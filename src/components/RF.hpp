@@ -98,11 +98,12 @@ private:
     
     const uint64_t canal[2] = {0xF0F0F0F0E1LL, 0xF0F0F0F0D2LL};                   // Se declaran los canales (64 bits en hexadecimal) para transmisión RF
 
+
+
      //https://stackoverflow.com/questions/41443720/how-to-create-an-isr-in-an-arduino-class
+     //https://www.onetransistor.eu/2019/05/arduino-class-interrupts-and-callbacks.html
     static void getISR_RF_function(void* RF)
     {
         anchor-> ISR_RF_function();
     } 
-
-
 };
