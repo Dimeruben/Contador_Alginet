@@ -1,0 +1,4 @@
+-Aplicar Estados
+-Se podría agrupar todos los components y servicios en una clase IotContador
+-Quitar numeros mágicos
+-Asegurarse que se recibe un int cuando se define limite agua

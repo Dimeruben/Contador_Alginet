@@ -1,9 +1,11 @@
 #pragma once
 
+#include "config.h"
 
-#include "./components/valvula.hpp"
-#include "./components/RF.hpp"
-#include "./components/contador.hpp"
+#include "valvula.hpp"
+#include "RF.hpp"
+#include "contador.hpp"
+
 
     
 class Alarms

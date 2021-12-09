@@ -1,9 +1,9 @@
 #pragma once
 
-#include "./components/valvula.hpp"
-#include "./components/RF.hpp"
-#include "./components/contador.hpp"
-#include "./services/alarms.hpp"
+#include "valvula.hpp"
+#include "RF.hpp"
+#include "contador.hpp"
+#include "alarms.hpp"
 
 
     

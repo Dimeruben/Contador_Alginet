@@ -2,8 +2,8 @@
 
 #include <EEPROM.h>
 
-#include "./constants/config.h"
-#include "./constants/pinnout.h"
+#include "config.h"
+#include "pinnout.h"
 
 class ValvulaComponent 
 {

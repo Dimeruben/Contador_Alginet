@@ -1,9 +1,9 @@
-#include "components/valvula.hpp"
-#include "components/contador.hpp"
-#include "components/RF.hpp"
+#include "valvula.hpp"
+#include "contador.hpp"
+#include "RF.hpp"
 
-#include "services/comunication.hpp"
-#include "services/alarms.hpp"
+#include "comunication.hpp"
+#include "alarms.hpp"
 
 ValvulaComponent valvula;
 Contador contador;
