@@ -5,13 +5,19 @@
 
 #include "contador.h"
 
+
 Contador *pointerToClass;
 
-        int cont = 0;
-        unsigned long cont24hdia = 0;                                                 //para el calculo diario a las 00:00 y mandar a Ubidots
-        unsigned long cont24h = 0;                                                    //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
-        unsigned long cont1h = 0;
+    int cont = 0;
+    unsigned long cont24hdia = 0;                                                 //para el calculo diario a las 00:00 y mandar a Ubidots
+    unsigned long cont24h = 0;                                                    //Pulsos recibidos por el caudalimetro. Para función comprobarCont24h()
+    unsigned long cont1h = 0;
 
+
+static void outsideInterruptHandler(void) { // define global handler
+
+    pointerToClass->ISRCounter(); // calls class member handler
+}
 
 void Contador::Init()
 {
@@ -47,10 +53,6 @@ unsigned long Contador::getCons24h()     {return (cont24h   /factorK/60);}
 unsigned long Contador::getCons1h()      {return (cont1h    /factorK/60);}
 
 
-static void outsideInterruptHandler(void) { // define global handler
-
-    pointerToClass->ISRCounter(); // calls class member handler
-}
 
 void Contador::ISRCounter()
 {
