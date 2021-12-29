@@ -45,7 +45,7 @@ private:
     unsigned long Time24h = 0;                                                    //Marcador de tiempo para reinicio del consumo acumulado (cada 24h)
     unsigned long Time5h = 0;                                                     //Marcador de tiempo para reinicio del consumo ininterrumpido (cada 5h)
 
-    const long unsigned int i3h  = 18000000;
+    const long unsigned int i5h  = 18000000;
     const long unsigned int i24h = 86400000;
 
     void comprobarIninterrumpido() {
@@ -54,7 +54,7 @@ private:
         Time5h = millis(); 
     }
 
-    if (millis() - Time5h > i3h  || millis() < Time5h) {          //cada 18000000ms =1000*60*60*5 (5h) se reinicia el contador de consumo a 0
+    if (millis() - Time5h > i5h  || millis() < Time5h) {          //cada 18000000ms =1000*60*60*5 (5h) se reinicia el contador de consumo a 0
         Time5h = millis();
         rf->notificaRF("Ininterrumpido");
         valvula->cerrarValvula();

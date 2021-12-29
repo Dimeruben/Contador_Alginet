@@ -36,6 +36,8 @@ private:
 
     void comprobarRF()
     {
+        datoRecibido = rf->comprobarRF();
+         
         if (datoRecibido =! "NoData")
         {
             mensaje = "";             //Necesario para que la funcion concat funcione correcamente
