@@ -7,15 +7,20 @@
 #include "config.h"
 #include "pinnout.h"
 
-class RF
+class RF 
 {
 public:
 
+    RF ()
+    {
+        radio = new RF24(9, 10);
+    }
+    
     void Init()
     {
-    
+        
          //Inicialización del modulo RF
-        radio->begin(CE,CSN); //Start the nRF24 module
+        radio->begin(); //Start the nRF24 module
         radio->setAutoAck(1); // Ensure autoACK is enabled so rec sends ack packet to let you know it got the transmit packet payload
         //radio->enableAckPayload(); //allows you to include payload on ack packet
         radio->maskIRQ(1, 1, 0); //mask all IRQ triggers except for receive (1 is mask, 0 is no mask)
