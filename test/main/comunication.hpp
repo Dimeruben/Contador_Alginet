@@ -38,7 +38,7 @@ private:
     {
         datoRecibido = rf->comprobarRF();
          
-        if (datoRecibido =! "NoData")
+        if (datoRecibido != "NoData")
         {
             mensaje = "";             //Necesario para que la funcion concat funcione correcamente
             
