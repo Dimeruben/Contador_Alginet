@@ -2,7 +2,7 @@
 
 #include "valvula.hpp"
 #include "RF.hpp"
-#include "contador.h"
+#include "contador.hpp"
 #include "alarms.hpp"
 
 
