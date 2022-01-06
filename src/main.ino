@@ -1,5 +1,5 @@
 #include "valvula.hpp"
-#include "contador.h"
+#include "contador.hpp"
 #include "RF.hpp"
 
 #include "comunication.hpp"
